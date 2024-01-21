@@ -9,12 +9,12 @@
 #            IEEE Signal Processing Letters, vol. 26, no. 6, pp. 948-952, June 2019.
 #            DOI:10.1109/LSP.2019.2913022
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import numpy as np
-from tensorflow.contrib import layers
 import scipy.io as sio
 import argparse
 import random
+tf.disable_v2_behavior()
 
 
 class ConvAE(object):
@@ -115,7 +115,7 @@ class ConvAE(object):
         all_weights['enc_w0'] = tf.get_variable("enc_w0",
                                                             shape=[self.kernel_size[0], self.kernel_size[0], 1,
                                                                    self.n_hidden[0]],
-                                                            initializer=layers.xavier_initializer_conv2d())
+                                                            initializer=tf.compat.v1.keras.initializers.glorot_normal())
         all_weights['enc1_b0'] = tf.Variable(tf.zeros([self.n_hidden[0]], dtype=tf.float32))
 
         all_weights['enc_b0'] = tf.Variable(tf.zeros([self.n_hidden[0]], dtype=tf.float32))
@@ -124,41 +124,41 @@ class ConvAE(object):
                                                             shape=[self.kernel_size[1], self.kernel_size[1],
                                                                    self.n_hidden[0],
                                                                    self.n_hidden[1]],
-                                                            initializer=layers.xavier_initializer_conv2d())
+                                                            initializer=tf.compat.v1.keras.initializers.glorot_normal())
         all_weights['enc_b1'] = tf.Variable(tf.zeros([self.n_hidden[1]], dtype=tf.float32))
 
         all_weights['enc_w2'] = tf.get_variable("enc_w2",
                                                             shape=[self.kernel_size[2], self.kernel_size[2],
                                                                    self.n_hidden[1],
                                                                    self.n_hidden[2]],
-                                                            initializer=layers.xavier_initializer_conv2d())
+                                                            initializer=tf.compat.v1.keras.initializers.glorot_normal())
         all_weights['enc_b2'] = tf.Variable(tf.zeros([self.n_hidden[2]], dtype=tf.float32))
 
         all_weights['dec_w0'] = tf.get_variable("dec1_w0",
                                                             shape=[self.kernel_size[2], self.kernel_size[2],
                                                                    self.n_hidden[1],
                                                                    self.n_hidden[3]],
-                                                            initializer=layers.xavier_initializer_conv2d())
+                                                            initializer=tf.compat.v1.keras.initializers.glorot_normal())
         all_weights['dec_b0'] = tf.Variable(tf.zeros([self.n_hidden[1]], dtype=tf.float32))
 
         all_weights['dec_w1'] = tf.get_variable("dec1_w1",
                                                             shape=[self.kernel_size[1], self.kernel_size[1],
                                                                    self.n_hidden[0],
                                                                    self.n_hidden[1]],
-                                                            initializer=layers.xavier_initializer_conv2d())
+                                                            initializer=tf.compat.v1.keras.initializers.glorot_normal())
         all_weights['dec_b1'] = tf.Variable(tf.zeros([self.n_hidden[0]], dtype=tf.float32))
 
         all_weights['dec_w2'] = tf.get_variable("dec1_w2",
                                                             shape=[self.kernel_size[0], self.kernel_size[0], 1,
                                                                    self.n_hidden[0]],
-                                                            initializer=layers.xavier_initializer_conv2d())
+                                                            initializer=tf.compat.v1.keras.initializers.glorot_normal())
         all_weights['dec_b2'] = tf.Variable(tf.zeros([1], dtype=tf.float32))
 
         all_weights['enc_w3'] = tf.get_variable("enc_w3",
                                                 shape=[self.kernel_size[3], self.kernel_size[3],
                                                        self.n_hidden[2],
                                                        self.n_hidden[3]],
-                                                initializer=layers.xavier_initializer_conv2d())
+                                                initializer=tf.compat.v1.keras.initializers.glorot_normal())
         all_weights['enc_b3'] = tf.Variable(tf.zeros([self.n_hidden[3]], dtype=tf.float32))
 
         all_weights['Coef'] = tf.Variable(1.0e-4 * tf.ones([self.test_size, self.train_size], tf.float32), name='Coef')
