@@ -1,4 +1,57 @@
 # Deep Sparse Representation-based Classification
+"""
+Deep Sparse Representation-based Classification (DSRC)
+=====================================================
+This module implements the Deep Sparse Representation-based Classification (DSRC) method as described in:
+    M. Abavisani and V. M. Patel, "Deep sparse representation-based classification,"
+    IEEE Signal Processing Letters, vol. 26, no. 6, pp. 948-952, June 2019.
+    DOI:10.1109/LSP.2019.2913022
+The implementation is based on TensorFlow 1.x and is built upon:
+    - https://github.com/panji1990/Deep-subspace-clustering-networks
+    - https://github.com/mahdiabavisani/Deep-multimodal-subspace-clustering-networks
+Classes:
+--------
+ConvAE:
+    Convolutional Autoencoder for deep sparse representation-based classification.
+    - __init__: Initializes the model, builds the computation graph, and sets up training operations.
+    - _initialize_weights: Initializes and stores model weights in a dictionary.
+    - encoder: Builds the encoder part of the autoencoder.
+    - decoder: Builds the decoder part of the autoencoder.
+    - partial_fit: Performs a single optimization step for the main model.
+    - pretrain_step: Performs a single optimization step for the pretraining stage.
+    - initlization: Initializes model variables.
+    - reconstruct: Reconstructs input data using the trained autoencoder.
+    - transform: Extracts autoencoder features for input data.
+    - save_model: Saves the model to disk.
+    - restore: Restores the model from disk.
+Functions:
+----------
+thrC(C, ro=0.1):
+    Thresholds the coefficient matrix C by keeping the largest coefficients that sum up to a fraction 'ro' of the total L1 norm.
+err_rate(gt_s, s):
+    Computes the misclassification rate between ground truth labels and predicted labels.
+testing(Img_test, Img_train, train_labels, test_labels, CAE, num_class, args):
+    Trains and evaluates the ConvAE model on the provided training and testing data.
+    Returns the final accuracy and coefficient matrix.
+get_train_test_data(data, training_rate=0.8):
+    Splits the dataset into training and testing sets based on the specified training rate.
+    Returns training images, testing images, training labels, testing labels, and all labels.
+Usage:
+------
+Run the script as a standalone program to train and evaluate DSRC on a dataset in .mat format.
+Command-line arguments allow customization of dataset path, model name, training rate, number of epochs, and reporting frequency.
+Dependencies:
+-------------
+- TensorFlow 1.x (compat.v1)
+- NumPy
+- SciPy
+- argparse
+- random
+Author:
+-------
+Mahdi Abavisani
+mahdi.abavisani@rutgers.edu
+"""
 # https://arxiv.org/abs/1904.11093
 # Mahdi Abavisani
 # mahdi.abavisani@rutgers.edu
@@ -18,6 +71,82 @@ tf.disable_v2_behavior()
 
 
 class ConvAE(object):
+    """
+    ConvAE is a Convolutional Autoencoder model for unsupervised learning and self-expressive subspace clustering.
+    Attributes:
+        n_input (tuple): Shape of the input data (height, width).
+        kernel_size (list): List of kernel sizes for each convolutional layer.
+        n_hidden (list): List of number of filters for each convolutional layer.
+        batch_size (int): Total batch size (train + test).
+        train_size (int): Number of training samples in each batch.
+        test_size (int): Number of test samples in each batch (batch_size - train_size).
+        reg (float or None): Regularization parameter (optional).
+        model_path (str or None): Path to save the trained model.
+        restore_path (str or None): Path to restore a saved model.
+        iter (int): Training iteration counter.
+        sess (tf.InteractiveSession): TensorFlow session for running computations.
+        saver (tf.train.Saver): TensorFlow Saver object for saving/restoring models.
+        summary_writer (tf.summary.FileWriter): Writer for TensorBoard summaries.
+    Methods:
+        __init__(self, n_input, kernel_size, n_hidden, reg_constant1=1.0, re_constant2=1.0, batch_size=200, train_size=100, reg=None, denoise=False, model_path=None, restore_path=None, logs_path='./logs'):
+            Initializes the ConvAE model, builds the computation graph, and sets up training operations.
+        _initialize_weights(self):
+            Initializes and returns a dictionary of model weights and biases.
+        encoder(self, X, weights):
+            Builds the encoder part of the autoencoder.
+            Args:
+                X (tf.Tensor): Input tensor.
+                weights (dict): Dictionary of weights and biases.
+            Returns:
+                latent (tf.Tensor): Latent representation.
+                latents (tf.Tensor): Output of the last encoder layer before the final latent layer.
+                shapes (list): List of shapes for each encoder layer.
+        decoder(self, z, weights, shapes):
+            Builds the decoder part of the autoencoder.
+            Args:
+                z (tf.Tensor): Latent representation.
+                weights (dict): Dictionary of weights and biases.
+                shapes (list): List of shapes for each encoder layer.
+            Returns:
+                recons (tf.Tensor): Reconstructed input.
+        partial_fit(self, X, Y, lr):
+            Performs a single optimization step on the main loss.
+            Args:
+                X (np.ndarray): Test data batch.
+                Y (np.ndarray): Training data batch.
+                lr (float): Learning rate.
+            Returns:
+                cost (float): Reconstruction loss.
+                Coef (np.ndarray): Self-expressive coefficient matrix.
+        pretrain_step(self, X, Y, lr):
+            Performs a single optimization step on the pretraining loss.
+            Args:
+                X (np.ndarray): Test data batch.
+                Y (np.ndarray): Training data batch.
+                lr (float): Learning rate.
+            Returns:
+                cost (float): Pretraining reconstruction loss.
+        initlization(self):
+            Initializes all TensorFlow variables.
+        reconstruct(self, X):
+            Reconstructs the input data using the trained autoencoder.
+            Args:
+                X (np.ndarray): Input data.
+            Returns:
+                np.ndarray: Reconstructed data.
+        transform(self, X, Y):
+            Computes the autoencoder features for the given data.
+            Args:
+                X (np.ndarray): Test data batch.
+                Y (np.ndarray): Training data batch.
+            Returns:
+                np.ndarray: Autoencoder features.
+        save_model(self):
+            Saves the current model to the specified model_path.
+        restore(self):
+            Restores the model from the specified restore_path.
+    """
+
     def __init__(self, n_input, kernel_size, n_hidden, reg_constant1=1.0, re_constant2=1.0, batch_size=200, train_size=100,reg=None, \
                  denoise=False, model_path=None, restore_path=None, \
                  logs_path='./logs'):
@@ -43,7 +172,7 @@ class ConvAE(object):
 
         self.x = tf.concat([self.train, self.test], axis=0) #Concat testing and training samples
 
-
+        # Encoder
         latent, latents, shape = self.encoder(self.x, weights)
         latent_shape = tf.shape(latent)
 
@@ -56,8 +185,11 @@ class ConvAE(object):
         z_test = tf.reshape(latent_test, [self.test_size, -1])
         z = tf.reshape(latent, [self.batch_size, -1])
 
+        # Self-expressive layer
+        # Coef is the self-expressive coefficient matrix
         Coef = weights['Coef']   # This is \theta in the paper
 
+        # Approximate the latent features of the test samples using the training samples
         z_test_c = tf.matmul(Coef, z_train)
         z_c = tf.concat([z_train, z_test_c], axis=0)
         latent_c_test = tf.reshape(z_test_c, tf.shape(latent_test)) 
@@ -80,10 +212,15 @@ class ConvAE(object):
         
         self.reconst_cost_x = tf.reduce_sum(tf.pow(tf.subtract(self.x, self.x_r), 2.0))
         tf.summary.scalar("recons_loss", self.reconst_cost_x)
-
+        
+        # Regularization term
         self.reg_losses = tf.reduce_sum(tf.pow(Coef, 2.0))
         tf.summary.scalar("reg_loss", reg_constant1 * self.reg_losses)
 
+        # Self-expressive loss
+        # The self-expressive loss is the l_2 norm of the difference between the latent features of the test samples
+        # and the approximate latent features of the test samples
+        # using the training samples
         self.selfexpress_losses = 0.5 * tf.reduce_sum(tf.pow(tf.subtract(z_c, z), 2.0))
 
         tf.summary.scalar("selfexpress_loss", re_constant2 * self.selfexpress_losses)
@@ -108,7 +245,7 @@ class ConvAE(object):
 
     def _initialize_weights(self):
         '''
-        initializes weights for the model and soters them in a dictionary.
+        initializes weights for the model and stores them in a dictionary.
         '''
         
         all_weights = dict()
@@ -168,6 +305,23 @@ class ConvAE(object):
 
     # Building the encoder
     def encoder(self, X, weights):
+        """
+        Encodes the input tensor X using a series of convolutional layers with ReLU activations.
+        Args:
+            X (tf.Tensor): Input tensor of shape [batch_size, height, width, channels].
+            weights (dict): Dictionary containing the weights and biases for each convolutional layer.
+                Expected keys:
+                    - 'enc_w0', 'enc_b0': Weights and biases for the first conv layer.
+                    - 'enc_w1', 'enc_b1': Weights and biases for the second conv layer.
+                    - 'enc_w2', 'enc_b2': Weights and biases for the third conv layer.
+                    - 'enc_w3': Weights for the final conv layer.
+        Returns:
+            tuple:
+                - latent (tf.Tensor): Output tensor after the final convolution and ReLU activation.
+                - latents (tf.Tensor): Output tensor from the third convolutional layer (before the final conv).
+                - shapes (list): List of shapes of the tensors at each stage of the encoder.
+        """
+        
         shapes = []
         # Encoder Hidden layer with relu activation #1
         shapes.append(X.get_shape().as_list())
@@ -199,6 +353,16 @@ class ConvAE(object):
 
     # Building the decoder
     def decoder(self, z, weights, shapes):
+        """
+        Decodes the latent representation `z` into a reconstructed output using a series of transposed convolutional layers.
+        Args:
+            z (tf.Tensor): Latent representation tensor to be decoded.
+            weights (dict): Dictionary containing the decoder weights and biases with keys 'dec_w0', 'dec_b0', 'dec_w1', 'dec_b1', 'dec_w2', 'dec_b2'.
+            shapes (list): List of shapes for each decoder layer output, where each shape is a list or tuple specifying the output dimensions.
+        Returns:
+            tf.Tensor: The reconstructed output tensor after passing through the decoder network.
+        """
+
         # Encoder Hidden layer with relu activation #1
         shape_de1 = shapes[2]
         layer1 = tf.add(tf.nn.conv2d_transpose(z, weights['dec_w0'], tf.stack(
@@ -220,6 +384,21 @@ class ConvAE(object):
         return recons
 
     def partial_fit(self, X,Y, lr):
+        """
+        Performs a single partial fit (training step) on the model using the provided input and target data.
+        Args:
+            X (numpy.ndarray or compatible): Input data for testing or inference.
+            Y (numpy.ndarray or compatible): Target data for training.
+            lr (float): Learning rate for the optimizer.
+        Returns:
+            tuple: A tuple containing:
+                - cost (float): The reconstruction cost after the training step.
+                - Coef (numpy.ndarray): The coefficient matrix obtained after the training step.
+        Side Effects:
+            - Updates the model's internal iteration counter (`self.iter`).
+            - Writes summary data to the summary writer for visualization/logging.
+        """
+
         cost, summary, _, Coef = self.sess.run(
             (self.reconst_cost_x, self.merged_summary_op, self.optimizer, self.Coef_test), feed_dict={self.learning_rate:lr,self.train:Y,self.test:X})
         self.summary_writer.add_summary(summary, self.iter)
@@ -227,6 +406,19 @@ class ConvAE(object):
         return cost, Coef
     
     def pretrain_step(self, X,Y, lr):
+        def pretrain_step(self, X, Y, lr):
+            """
+            Performs a single pretraining step for the model.
+            Executes a TensorFlow session run to optimize the pretraining objective using the provided input and target data,
+            updates the summary writer for TensorBoard visualization, and increments the training iteration counter.
+            Args:
+                X: Input data for the pretraining step (typically used as test data).
+                Y: Target data for the pretraining step (typically used as training data).
+                lr: Learning rate for the optimizer.
+            Returns:
+                cost: The reconstruction cost computed during this pretraining step.
+            """
+
         cost, summary, _ = self.sess.run(
             (self.reconst_cost_x, self.merged_summary_op, self.optimizer_pretrain), feed_dict={self.learning_rate:lr,self.train:Y,self.test:X})
         self.summary_writer.add_summary(summary, self.iter)
@@ -253,6 +445,24 @@ class ConvAE(object):
 
 
 def thrC(C, ro=0.1):
+    """
+    Thresholds the columns of matrix C based on the cumulative sum of absolute values.
+    For each column in C, retains the largest elements such that their cumulative absolute sum
+    exceeds a fraction `ro` of the total absolute sum of the column. The remaining elements are set to zero.
+    If `ro >= 1`, the original matrix C is returned unchanged.
+    Parameters
+    ----------
+    C : np.ndarray
+        Input 2D array (matrix) to be thresholded.
+    ro : float, optional
+        Fraction of the total absolute sum to retain in each column (default is 0.1).
+    Returns
+    -------
+    Cp : np.ndarray
+        Thresholded matrix with the same shape as C, where only the largest elements in each column
+        (by absolute value) are retained to satisfy the cumulative sum condition.
+    """
+
     if ro < 1:
         N1 = C.shape[0]
         N2 = C.shape[1]
@@ -277,6 +487,18 @@ def thrC(C, ro=0.1):
 
 
 def err_rate(gt_s, s):
+    """
+    Calculates the error rate (miss rate) between two sequences.
+    Parameters:
+        gt_s (np.ndarray): Ground truth sequence (1D array).
+        s (np.ndarray): Predicted or estimated sequence (1D array) to compare against the ground truth.
+    Returns:
+        float: The proportion of elements in which the two sequences differ (error rate).
+    Notes:
+        - Both input arrays must have the same shape.
+        - The function computes the number of mismatches and divides by the total number of elements.
+    """
+
     err_x = np.sum(gt_s[:] != s[:])
     missrate = err_x.astype(float) / (gt_s.shape[0])
     return missrate
@@ -284,6 +506,25 @@ def err_rate(gt_s, s):
 
 
 def testing(Img_test,Img_train, train_labels,test_labels, CAE, num_class,args):
+    """
+    Performs testing and training steps for a Convolutional Autoencoder (CAE) based classification model.
+    Args:
+        Img_test (array-like): Test images.
+        Img_train (array-like): Training images.
+        train_labels (array-like): Labels for training images.
+        test_labels (array-like): Labels for test images.
+        CAE (object): Convolutional Autoencoder model instance with required methods.
+        num_class (int): Number of classes in the dataset.
+        args (argparse.Namespace): Arguments containing 'max_step', 'pretrain_step', and 'display_step'.
+    Returns:
+        tuple:
+            acc_x (float): Final accuracy achieved on the test set.
+            Coef (numpy.ndarray): Final coefficient matrix from the CAE model.
+    Notes:
+        - The function performs a pretraining phase followed by a main training phase.
+        - During training, it periodically prints cost and accuracy.
+        - Optionally, it can save accuracy, coefficients, and cost to a .mat file.
+    """
 
     Img_test = np.array(Img_test)
     Img_test = Img_test.astype(float)
@@ -316,7 +557,7 @@ def testing(Img_test,Img_train, train_labels,test_labels, CAE, num_class,args):
         cost = CAE.pretrain_step(Img_test,Img_train, lr)  #
 
         if epoch % display_step == 0:
-            print ("pretrtain epoch: %.1d" % epoch, "cost: %.8f" % (cost / float(batch_size)))   
+            print ("pretrain epoch: %.1d" % epoch, "cost: %.8f" % (cost / float(batch_size)))   
     
 
     while epoch < max_step:
@@ -395,6 +636,7 @@ def get_train_test_data(data,training_rate=0.8):
     return Img_train,Img_test,train_labels,test_labels,Label
 
 if __name__ == '__main__':
+    
     random.seed(2019)
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--mat', dest='mat', default='umd', help='path of the dataset')
