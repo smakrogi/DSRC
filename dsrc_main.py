@@ -190,6 +190,7 @@ class ConvAE(object):
         Coef = weights['Coef']   # This is \theta in the paper
 
         # Approximate the latent features of the test samples using the training samples
+        # sparsity is enforced by the self-expressive layer.
         z_test_c = tf.matmul(Coef, z_train)
         z_c = tf.concat([z_train, z_test_c], axis=0)
         latent_c_test = tf.reshape(z_test_c, tf.shape(latent_test)) 
@@ -679,7 +680,7 @@ if __name__ == '__main__':
 
     model_path = './models/' + args.model + '.ckpt'
     logs_path = './logs'
-    # tf.reset_default_graph()
+    tf.reset_default_graph()
     CAE = ConvAE(n_input=n_input, n_hidden=n_hidden, reg_constant1=reg1, re_constant2=reg2, \
                  kernel_size=kernel_size, batch_size=batch_size, train_size=training_size,model_path=model_path, restore_path=model_path,
                  logs_path=logs_path)
